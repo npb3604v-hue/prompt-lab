@@ -1,5 +1,7 @@
 # プロンプトラボ
 
+[公開アプリ](https://prompt-lab.n-pb360-4v.workers.dev/) / [GitHub](https://github.com/npb3604v-hue/prompt-lab)
+
 PCでテーマごとにAIへの指示を練習するWebアプリです。キャッチコピーを置かず、練習操作とキラーワードを中心にしています。
 
 - Webサイト / スライド / 議事録 / 業務改善 / 文章・SNS / 医療・専門職の6テーマ・18題
@@ -30,14 +32,16 @@ GitHub Actionsの設定例は`docs/github-actions-check.yml`です。現在のGi
 
 ## Cloudflareへの公開
 
-Cloudflare公式Wrangler、Cloudflareアカウント、Workers AIを使える状態が必要です。CLIを追加する場合は発行元とバージョンを確認し、利用者が承認したものを使用してください。
+Cloudflare公式Wrangler 4.151.3をdevDependenciesとpackage-lock.jsonで固定しています。Cloudflareアカウント、Workers AIを使える状態が必要です。
 
 ```sh
-npx wrangler login
+npx wrangler login --scopes account:read user:read workers:write workers_scripts:write ai:write
 npx wrangler whoami
 npx wrangler deploy --dry-run
 npx wrangler deploy
 ```
+
+認証画面には上記に必須のバックグラウンドアクセスを加えた6権限が表示されます。認証情報の中身をソースやログに保存しないでください。新しい環境での依存復元は`npm ci`で行います。
 
 `wrangler.jsonc`に静的アセット、AIバインディング、AI呼び出しのレート制限を定義しています。APIキーをフロントエンドに置きません。公開URLで`/api/health`の`aiConnected`が`true`であることを確認してください。
 

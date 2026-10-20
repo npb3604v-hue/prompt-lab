@@ -42,7 +42,7 @@ test('レート制限超過時はAIを実行しない',async()=>{
 });
 test('AIの正常応答と依頼者モードを受け取れる',async()=>{
   let messages;const env={AI:{run:async(model,body)=>{messages=body.messages;return{response:'対象と枚数を具体的に書いてみましょう。'};}},AI_LIMITER:{limit:async()=>({success:true})}};
-  const response=await worker.fetch(request('/api/coach',{...sample,kind:'roleplay'}),env);assert.equal(response.status,200);const data=await response.json();assert.equal(data.source,'Workers AI');assert.ok(data.feedback.includes('具体的'));assert.ok(messages[0].content.includes('依頼者役'));
+  const response=await worker.fetch(request('/api/coach',{...sample,kind:'roleplay'}),env);assert.equal(response.status,200);const data=await response.json();assert.equal(data.source,'Workers AI');assert.ok(data.feedback.includes('具体的'));assert.ok(messages[0].content.includes('依頼者役'));assert.ok(messages.at(-1).content.endsWith('/no_think'));
 });
 test('AI障害・空の応答を502で扱う',async()=>{
   for(const run of [async()=>{throw Error('upstream');},async()=>({})]){const response=await worker.fetch(request('/api/coach'),{AI:{run},AI_LIMITER:{limit:async()=>({success:true})}});assert.equal(response.status,502);}
@@ -52,6 +52,9 @@ test('レート制限サービスの障害は503で扱う',async()=>{
 });
 test('chat.completion形式の応答にも対応する',async()=>{
   const response=await worker.fetch(request('/api/coach'),{AI:{run:async()=>({choices:[{message:{content:'<think>internal</think>出力形式を指定しましょう。'}}]})},AI_LIMITER:{limit:async()=>({success:true})}});assert.equal(response.status,200);assert.equal((await response.json()).feedback,'出力形式を指定しましょう。');
+});
+test('思考部分だけの途中応答をユーザーへの回答として表示しない',async()=>{
+  const response=await worker.fetch(request('/api/coach'),{AI:{run:async()=>({response:'<think>unfinished reasoning'})},AI_LIMITER:{limit:async()=>({success:true})}});assert.equal(response.status,502);assert.equal((await response.json()).code,'AI_EMPTY');
 });
 test('静的ファイルはASSETSに委譲する',async()=>{
   const response=await worker.fetch(new Request('https://prompt.test/style.css'),{ASSETS:{fetch:async()=>new Response('body{}')}});assert.equal(await response.text(),'body{}');

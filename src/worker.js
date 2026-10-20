@@ -51,15 +51,18 @@ export default {
     try {
       const response = await Promise.race([
         env.AI.run(env.AI_MODEL || '@cf/qwen/qwen3-30b-a3b-fp8', {
-          messages: [{ role: 'system', content: system }, { role: 'user', content: JSON.stringify({ topic: scenario.title, brief: scenario.brief, requirements: scenario.requirements, prompt: body.prompt }) }],
-          max_tokens: 650, temperature: 0.35,
+          messages: [{ role: 'system', content: system + '\n/no_think' }, { role: 'user', content: JSON.stringify({ topic: scenario.title, brief: scenario.brief, requirements: scenario.requirements, prompt: body.prompt }) + '\n/no_think' }],
+          max_tokens: 900, temperature: 0.7, top_p: 0.8, top_k: 20,
         }),
         new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), 20000); }),
       ]);
       const content = response?.response ?? response?.choices?.[0]?.message?.content;
-      const feedback = typeof content === 'string' ? content.replace(/<think>[\s\S]*?<\/think>/g, '').trim() : '';
+      const feedback = typeof content === 'string' ? content.replace(/<think>[\s\S]*?(?:<\/think>|$)/g, '').trim() : '';
       if (!feedback) throw new Error('empty');
       return json({ feedback: feedback.slice(0, 3000), source: 'Workers AI', model: env.AI_MODEL || '@cf/qwen/qwen3-30b-a3b-fp8' });
-    } catch { return json({ error: 'AIコーチに接続できませんでした。入力は残っています。時間をおいて再試行してください。' }, 502); } finally { clearTimeout(timer); }
+    } catch (error) {
+      const code = error?.message === 'timeout' ? 'AI_TIMEOUT' : error?.message === 'empty' ? 'AI_EMPTY' : 'AI_UNAVAILABLE';
+      return json({ error: code === 'AI_TIMEOUT' ? 'AIコーチの応答に時間がかかっています。入力は残っています。もう一度お試しください。' : 'AIコーチに接続できませんでした。入力は残っています。時間をおいて再試行してください。', code }, 502);
+    } finally { clearTimeout(timer); }
   },
 };

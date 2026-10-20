@@ -1,0 +1,95 @@
+{
+  "url": "https://prompt-lab.n-pb360-4v.workers.dev/",
+  "checks": [
+    {
+      "id": "web-memo",
+      "score": 100,
+      "axes": 5
+    },
+    {
+      "id": "web-reservation",
+      "score": 100,
+      "axes": 5
+    },
+    {
+      "id": "web-ai",
+      "score": 88,
+      "axes": 5
+    },
+    {
+      "id": "slides-intro",
+      "score": 94,
+      "axes": 5
+    },
+    {
+      "id": "slides-proposal",
+      "score": 100,
+      "axes": 5
+    },
+    {
+      "id": "slides-animation",
+      "score": 100,
+      "axes": 5
+    },
+    {
+      "id": "minutes-basic",
+      "score": 94,
+      "axes": 5
+    },
+    {
+      "id": "minutes-noisy",
+      "score": 94,
+      "axes": 5
+    },
+    {
+      "id": "minutes-action",
+      "score": 100,
+      "axes": 5
+    },
+    {
+      "id": "workflow-intake",
+      "score": 100,
+      "axes": 5
+    },
+    {
+      "id": "workflow-automation",
+      "score": 94,
+      "axes": 5
+    },
+    {
+      "id": "workflow-roleplay",
+      "score": 94,
+      "axes": 5
+    },
+    {
+      "id": "writing-email",
+      "score": 94,
+      "axes": 5
+    },
+    {
+      "id": "writing-social",
+      "score": 94,
+      "axes": 5
+    },
+    {
+      "id": "writing-video",
+      "score": 100,
+      "axes": 5
+    },
+    {
+      "id": "medical-training",
+      "score": 100,
+      "axes": 5
+    },
+    {
+      "id": "medical-faq",
+      "score": 88,
+      "axes": 5
+    },
+    {
+      "id": "medical-policy",
+      "score": 94,
+      "axes": 5
+    }
+  ]
+}

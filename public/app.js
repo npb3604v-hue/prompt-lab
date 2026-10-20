@@ -1,6 +1,7 @@
 import { categories, scenarios, keywords, sources } from './catalog.js';
 import { evaluatePrompt } from './evaluate.js';
 import { validateCustomWord } from './custom-words.js';
+import { createSpeechController } from './speech.js';
 
 const $ = (s, root = document) => root.querySelector(s);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -45,7 +46,7 @@ let history = Array.isArray(initialHistory) ? initialHistory.filter(h => h && ty
 let favorites = Array.isArray(initialFavorites) ? initialFavorites.filter(id => keywords.some(k => k.id === id)) : [];
 let drafts = read('drafts', {}); if (!drafts || Array.isArray(drafts) || typeof drafts !== 'object') drafts = {};
 const state = { page: 'practice', category: categories[0].id, scenarioId: scenarios[0].id, mode: 'practice', query: '', onlyFavorites: false, level: 'すべて', aiConnected: false, busy: false, speaking: false, recording: false, transcript: '', roleIndex: 0, result: null, recordCategory: 'all' };
-let recognition, speechSession = 0, speechBase = '', toastTimer, timerId, elapsed = 0, lastTick = Date.now();
+let speechController, toastTimer, timerId, elapsed = 0, lastTick = Date.now();
 const scenario = () => { const s=scenarios.find(s => s.id === state.scenarioId)||scenarios[0]; const extra=Array.isArray(scenarioExtras[s.id])?scenarioExtras[s.id].filter(id=>keywords.some(k=>k.id===id)):[]; return {...s,keywordIds:[...new Set([...s.keywordIds,...extra])]}; };
 const draft = () => typeof drafts[state.scenarioId] === 'string' ? drafts[state.scenarioId] : '';
 const byId = id => keywords.find(k => k.id === id);
@@ -137,9 +138,9 @@ function speak() {
   if (!('speechSynthesis' in window)) return toast('このブラウザは読み上げに対応していません。');
   const utterance = new SpeechSynthesisUtterance($('#coach-bubble')?.textContent || scenario().brief); utterance.lang = 'ja-JP'; utterance.rate = 1;
   state.speaking = true; document.querySelector('.mascot')?.classList.add('speaking');
-  utterance.onend = utterance.onerror = stopSpeaking; speechSynthesis.speak(utterance);
+  utterance.onend = stopSpeaking; utterance.onerror = event => { stopSpeaking(); if(!['canceled','interrupted'].includes(event.error)){console.warn('[PromptLab speech]',event.error);toast(event.error==='not-allowed'?'このサイトの音声再生を許可してから、もう一度押してください。':'この環境では読み上げを再生できません。コーチの説明はテキストで確認できます。');} }; try {speechSynthesis.speak(utterance);} catch {stopSpeaking();toast('読み上げを開始できませんでした。');}
 }
-function stopRecording() { speechSession++; if (recognition) { recognition.onresult=null; recognition.onend=null; recognition.onerror=null; recognition.onstart=null; try { recognition.abort(); } catch {} recognition=null; } state.recording = false; const button=$('#mic-button'); if(button) {button.classList.remove('recording');button.innerHTML=`${icon('mic')} 音声入力`;} }
+function stopRecording() { speechController?.stop(); state.recording=false; }
 function startRecording() {
   if (state.recording) { stopRecording(); return; }
   const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -147,14 +148,21 @@ function startRecording() {
   showDialog('音声入力を開始', '<p>ブラウザにマイクの使用を許可すると、日本語の音声を文字に変換します。音声はブラウザ提供元の音声認識サービスに送信される場合があります。</p><p>固有名詞や機密情報は話さず、誤変換を確認してから提出してください。</p><button class="primary-button" data-action="confirm-mic">音声入力を始める</button>');
 }
 function record() {
-  $('#dialog').close(); const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new Speech(); recognition.lang='ja-JP'; recognition.continuous=true; recognition.interimResults=true;
-  speechBase = draft(); let finalText=''; const session = ++speechSession; const scenarioId = state.scenarioId;
-  recognition.onstart = () => { state.recording=true; $('#mic-button')?.classList.add('recording'); $('#mic-button') && ($('#mic-button').innerHTML=`${icon('mic')} 停止する`); const note=$('#speech-note'); if(note) { note.hidden=false; note.textContent='音声入力中です。停止後に誤変換を確認してください。'; } };
-  recognition.onresult = event => { if(session !== speechSession || scenarioId !== state.scenarioId) return; let interim=''; for(let i=event.resultIndex;i<event.results.length;i++) { if(event.results[i].isFinal) finalText+=event.results[i][0].transcript; else interim+=event.results[i][0].transcript; } const input=$('#prompt-input'); if(input) { input.value=(speechBase+(speechBase?'\n':'')+finalText+interim).slice(0,8000); saveDraft(); } };
-  recognition.onerror = event => { toast(event.error==='not-allowed'?'マイクの許可がありません。テキスト入力で練習できます。':'音声を認識できませんでした。テキスト入力も利用できます。'); };
-  recognition.onend=()=>{ state.recording=false; $('#mic-button')?.classList.remove('recording'); if($('#mic-button')) $('#mic-button').innerHTML=`${icon('mic')} 音声入力`; const note=$('#speech-note'); if(note) {note.hidden=false;note.textContent='音声入力を停止しました。誤変換を確認してください。';} };
-  try { recognition.start(); } catch { toast('音声入力を開始できませんでした。'); }
+  $('#dialog').close();
+  stopRecording();
+  const scenarioId = state.scenarioId;
+  speechController = createSpeechController({
+    Recognition: window.SpeechRecognition || window.webkitSpeechRecognition,
+    onState(phase) {
+      state.recording = phase !== 'idle';
+      const button = $('#mic-button'), note = $('#speech-note');
+      if(button) { button.classList.toggle('recording',state.recording); button.innerHTML=`${icon('mic')} ${state.recording?'停止する':'音声入力'}`; }
+      if(note) { note.hidden=false; note.textContent=phase==='starting'?'マイクに接続しています…':phase==='listening'?'音声入力中です。停止後に誤変換を確認してください。':'音声入力を停止しました。誤変換を確認してください。'; }
+    },
+    onText(text) { const input=$('#prompt-input'); if(input) {input.value=text;saveDraft();} },
+    onError(error) { toast(error==='not-allowed'?'マイクの許可がありません。テキスト入力で練習できます。':error==='start-failed'?'音声入力を開始できませんでした。':'音声を認識できませんでした。テキスト入力も利用できます。'); },
+  });
+  speechController.start(draft(),()=>state.scenarioId===scenarioId&&state.page==='practice');
 }
 function about() { showDialog('使い方・技術について', `<div class="about-content"><h3>練習の流れ</h3><ol><li>テーマとお題を選びます。</li><li>キラーワードの意味・使用例を確認し、プロンプトを書きます。</li><li>フィードバックを見て書き直します。70点以上でクリアです。</li></ol><h3>ロールプレイ</h3><p>依頼者の相談に提案すると、追加の質問が届きます。教材に沿った対話です。自由な助言は「AIコーチに相談」で利用できます。</p><h3>採点と保存</h3><p>5軸のルール採点をブラウザで実行。キラーワードの数だけでは高得点になりません。入力・履歴・保存ワードはこの端末のブラウザに保存します。サイトデータを消すと記録も消えるため、必要に応じて書き出してください。</p><h3>技術選定</h3><dl><dt>JavaScript ES Modules</dt><dd>追加の実行ライブラリを使わず、初期表示と動作を軽くするため。</dd><dt>CSS / SVG</dt><dd>キャラクター、スケルトン、操作アニメーションを軽量に実現。動きを減らすOS設定にも対応。</dd><dt>Cloudflare Workers + Static Assets</dt><dd>画面とAPIを同じ場所で配信し、構成と保守を簡単にするため。</dd><dt>Workers AI</dt><dd>別会社のAI用APIキーを使わず、Cloudflareの接続でコーチ機能を提供するため。無料枠・利用制限のあるサービスです。</dd><dt>Web Speech API</dt><dd>音声入力・読み上げに利用。対応ブラウザと権限に依存します。</dd><dt>キラーワードの収集</dt><dd>キラーワード集の「ワードを追加」から意味・例文・参考URLを保存できます。「このお題で練習」で出題画面に追加します。</dd><dt>localStorage</dt><dd>自分用の記録を端末に残すため。ログインとパスワードの管理を不要にしています。</dd><dt>Node.js標準テスト / GitHub</dt><dd>外部のテスト依存を減らし、検証と変更履歴を再現できるようにするため。</dd></dl><p class="disclaimer">CloudflareのAIへの送信は相談ボタンの確認後のみ。通常の採点は外部に送信しません。</p></div>`,true); }
 function showWordForm(word) {
