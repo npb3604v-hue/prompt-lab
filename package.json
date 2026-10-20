@@ -1,0 +1,16 @@
+{
+  "name": "prompt-lab",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "テーマとキラーワードで練習するプロンプトトレーニングアプリ",
+  "scripts": {
+    "dev": "node src/dev-server.js",
+    "test": "node --test tests/*.test.js",
+    "check": "node --check public/app.js && node --check public/catalog.js && node --check public/evaluate.js && node --check public/custom-words.js && node --check src/worker.js && node --check src/dev-server.js",
+    "deploy": "wrangler deploy"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

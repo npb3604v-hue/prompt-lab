@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f8fafb">
+  <meta name="description" content="テーマ別のお題とキラーワードで、AIへの指示を練習する自分用ワークスペース。">
+  <meta name="robots" content="noindex,nofollow">
+  <title>プロンプトラボ</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">メインへ移動</a>
+  <div id="loading" class="loading-screen" role="status" aria-label="ワークスペースを読み込み中">
+    <div class="sk-sidebar"><div class="skeleton sk-logo"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
+    <div class="sk-main"><div class="skeleton sk-title"></div><div class="sk-categories"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div><div class="sk-content"><div class="skeleton"></div><div class="skeleton"></div></div></div>
+  </div>
+  <div id="app" aria-busy="true"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
+  <script type="module" src="/app.js"></script>
+  <noscript><p>このアプリの練習機能にはJavaScriptが必要です。</p></noscript>
+</body>
+</html>
